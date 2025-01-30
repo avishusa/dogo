@@ -2,6 +2,17 @@ import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "../services/authServices.tsx";
 import { AuthContext } from "../context/AuthContext.tsx";
+import {
+    LeftSection,
+    RightSection,
+    Container,
+    LoginWrapper,
+    Title,
+    Subtitle,
+    Input,
+    Button,
+    ErrorMessage,
+  } from "./Login.styled.ts";
 
 const LoginPage: React.FC = () => {
   const [name, setName] = useState("");
@@ -32,29 +43,35 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div>
-      <h2>Login</h2>
-      <form onSubmit={handleLogin}>
-        <input
-          type="text"
-          placeholder="Enter Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-        <input
-          type="email"
-          placeholder="Enter Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <button type="submit" disabled={loading}>
-          {loading ? "Logging in..." : "Login"}
-        </button>
-      </form>
-      {error && <p style={{ color: "red" }}>{error}</p>}
-    </div>
+    <Container>
+      <LoginWrapper>
+      <LeftSection>
+          <Title>🐶 Welcome to Dog Lovers! 🐶</Title>
+          <Subtitle>Login to find your perfect dog!</Subtitle>
+          <form onSubmit={handleLogin}>
+            <Input
+              type="text"
+              placeholder="Enter Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+            <Input
+              type="email"
+              placeholder="Enter Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <Button type="submit" disabled={loading}>
+              {loading ? "Logging in..." : "Login"}
+            </Button>
+          </form>
+          {error && <ErrorMessage>{error}</ErrorMessage>}
+        </LeftSection>
+        <RightSection /> {/* Dog Image */}
+      </LoginWrapper>
+    </Container>
   );
 };
 

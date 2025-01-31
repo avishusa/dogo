@@ -29,9 +29,8 @@ const LoginPage: React.FC = () => {
 
     try {
       await login(name, email);
-      localStorage.setItem("loginTime", new Date().getTime().toString()); 
       if (authContext) {
-        authContext.isAuthenticated = true;
+        authContext.loginUser();
       }
       
       navigate("/search"); // Redirect to search page

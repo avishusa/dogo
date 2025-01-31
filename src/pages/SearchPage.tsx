@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useContext  } from "react";
 import {
   fetchDogsByIds,
   fetchDogs,
@@ -8,6 +8,8 @@ import {
   Match,
   fetchLocations,
   Location,
+  searchLocations,        
+    LocationSearchParams
 } from "../services/apiService.ts";
 import DogCard from "../components/DogCard.tsx";
 import SearchFilters from "../components/SearchFilters.tsx";
@@ -18,11 +20,8 @@ import {
   ActionButton,
   DogCardWrapper,
 } from "../styles/search.styled.ts";
-import {
-    // ...
-    searchLocations,        // [NEW] we import searchLocations from apiService
-    LocationSearchParams,
-  } from "../services/apiService.ts";
+  import { AuthContext } from "../context/AuthContext.tsx";
+  import { useNavigate } from "react-router-dom";           // [NEW] if you want to navigate after logout
 
 const SearchPage: React.FC = () => {
   const [dogs, setDogs] = useState<Dog[]>([]);
@@ -56,6 +55,14 @@ const SearchPage: React.FC = () => {
     prev?: string; 
     next?: string; 
   }>({});
+  const authContext = useContext(AuthContext); 
+  const navigate = useNavigate();
+  
+  const handleLogout = useCallback(() => {
+    authContext?.logoutUser();
+    // Optionally navigate to the login page
+    navigate("/");
+  }, [authContext, navigate]);// [NEW] if you want to redirect to /login after logout
 
   useEffect(() => {
     let isCancelled = false;
@@ -133,7 +140,13 @@ const SearchPage: React.FC = () => {
     zipCodes
   ]);
   
-
+// In SearchPage.tsx
+useEffect(() => {
+    if (authContext?.isAuthenticated) {
+      navigate("/search");
+    }
+  }, [authContext?.isAuthenticated, navigate]);
+  
   useEffect(() => {
     if (!dogs.length) {
       setLocationsMap({});
@@ -229,7 +242,6 @@ const SearchPage: React.FC = () => {
     setFavorites([]);
 
     const match: Match | null = await fetchMatch(favorites);
-    console.log("Matched Dog ID:", match?.match);
 
     if (match?.match) {
       setMatchedDogId(match.match);
@@ -271,6 +283,11 @@ const SearchPage: React.FC = () => {
   }, [pagination.prev]);
     return (
     <Container>
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        {authContext?.isAuthenticated && (
+          <ActionButton onClick={handleLogout}>Logout</ActionButton>
+        )}
+      </div>
       <h2>🐶 Find Your Perfect Dog 🐶</h2>
 
       <SearchFilters

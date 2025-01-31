@@ -12,28 +12,25 @@ const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    const loginTime = localStorage.getItem("loginTime");
-    console.log(localStorage);
-    if (loginTime) {
-      const now = new Date().getTime();
-      const limit = 60 * 60 * 1000;
-      if (now - parseInt(loginTime) < limit) {
-        setIsAuthenticated(true);
-      } else {
-        handleLogout();
-      }
+    const authFlag = localStorage.getItem("isAuthenticated") === "true";
+    if (authFlag) {
+      setIsAuthenticated(true);
     }
   }, []);
+  const loginUser = () => {
+    localStorage.setItem("isAuthenticated", "true");
+    setIsAuthenticated(true);
+  };
 
-  const handleLogout = () => {
-    localStorage.removeItem("loginTime");
+  const logoutUser = () => {
+    localStorage.removeItem("isAuthenticated");
     setIsAuthenticated(false);
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, loginUser: () => setIsAuthenticated(true), logoutUser: handleLogout }}>
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={{ isAuthenticated, loginUser, logoutUser }}>
+    {children}
+  </AuthContext.Provider>
   );
 };
 

@@ -86,7 +86,6 @@ export const fetchDogs = async (
       }
       const response = await axiosInstance.get(`/dogs/search?${params.toString()}`);
   
-      console.log("Pagination Response:", response.data);
       return response.data;
     } catch (error) {
       console.error(" Error fetching dogs:", error);
@@ -98,8 +97,6 @@ export const fetchDogs = async (
 export const fetchDogsByIds = async (dogIds: string[]): Promise<Dog[]> => {
   try {
     if (!dogIds.length) return [];
-
-    console.log("->",dogIds);
 
     const response = await axiosInstance.post(`/dogs`, dogIds);
     return response.data;
@@ -115,7 +112,6 @@ export const fetchMatch = async (favoriteDogs: string[]): Promise<Match | null> 
       if (!favoriteDogs.length) return null;
   
       const response = await axiosInstance.post(`/dogs/match`, favoriteDogs);
-      console.log(response.data)
   
       if (response.data) {
         return  response.data; 

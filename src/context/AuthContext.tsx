@@ -13,6 +13,7 @@ const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   useEffect(() => {
     const loginTime = localStorage.getItem("loginTime");
+    console.log(localStorage);
     if (loginTime) {
       const now = new Date().getTime();
       const limit = 60 * 60 * 1000;

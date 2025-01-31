@@ -12,7 +12,7 @@ import {
     Input,
     Button,
     ErrorMessage,
-  } from "./Login.styled.ts";
+  } from "../styles/Login.styled.ts";
 
 const LoginPage: React.FC = () => {
   const [name, setName] = useState("");
@@ -29,7 +29,7 @@ const LoginPage: React.FC = () => {
 
     try {
       await login(name, email);
-      localStorage.setItem("loginTime", new Date().getTime().toString()); // Store login time
+      localStorage.setItem("loginTime", new Date().getTime().toString()); 
       if (authContext) {
         authContext.isAuthenticated = true;
       }

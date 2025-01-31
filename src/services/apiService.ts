@@ -28,6 +28,24 @@ export interface DogSearchResponse {
     next?: string; // Cursor for next page
     prev?: string; // Cursor for previous page
   }
+  export interface Location {
+    zip_code: string;
+    city: string;
+    state: string;
+    latitude: number;
+    longitude: number;
+  }
+  export interface LocationSearchParams {
+    city?: string;
+    states?: string[];
+    // plus optional bounding box fields ...
+  }
+  export interface LocationSearchResponse {
+    results: Location[];
+    total: number;
+  }
+  
+
 
 // **1️ Fetch all available breeds**
 export const fetchBreeds = async (): Promise<string[]> => {
@@ -49,7 +67,8 @@ export const fetchDogs = async (
     size: number = 25,
     from?: string, 
     sort: "breed" | "name" | "age" = "breed",
-    order: "asc" | "desc" = "asc"
+    order: "asc" | "desc" = "asc",
+
   ): Promise<DogSearchResponse> => {
     try {
       const params = new URLSearchParams();
@@ -65,7 +84,6 @@ export const fetchDogs = async (
       if (from) {
         params.append("from", from); 
       }
-  
       const response = await axiosInstance.get(`/dogs/search?${params.toString()}`);
   
       console.log("Pagination Response:", response.data);
@@ -107,6 +125,61 @@ export const fetchMatch = async (favoriteDogs: string[]): Promise<Match | null> 
     } catch (error) {
       console.error("Error fetching match:", error);
       return null;
+    }
+  };
+  
+  export const fetchLocations = async (zipCodes: string[]): Promise<Location[]> => {
+    try {
+      if (!zipCodes.length) return [];
+      // POST an array of zip codes to /locations
+      const response = await axiosInstance.post(`/locations`, zipCodes);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching locations:", error);
+      return [];
+    }
+  };
+  
+  //       Only needed if you want to use /locations/search for advanced filtering.
+  interface Coordinates {
+    lat: number;
+    lon: number;
+  }
+  
+  //  Body params for /locations/search
+  export interface LocationSearchParams {
+    city?: string;
+    states?: string[];
+    geoBoundingBox?: {
+      top?: Coordinates;
+      left?: Coordinates;
+      bottom?: Coordinates;
+      right?: Coordinates;
+      bottom_left?: Coordinates;
+      top_left?: Coordinates;
+      bottom_right?: Coordinates;
+      top_right?: Coordinates;
+    };
+    size?: number;
+    from?: number;
+  }
+  
+  //  Return shape for /locations/search
+  export interface LocationSearchResponse {
+    results: Location[];
+    total: number;
+  }
+  
+  //  A function to do POST /locations/search
+  export const searchLocations = async (
+    params: LocationSearchParams
+  ): Promise<LocationSearchResponse> => {
+    try {
+      const response = await axiosInstance.post(`/locations/search`, params);
+      return response.data;
+    } catch (error) {
+      console.error("Error searching locations:", error);
+      return { results: [], total: 0 };
     }
   };
   

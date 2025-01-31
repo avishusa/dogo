@@ -6,6 +6,8 @@ import {
   fetchMatch,
   Dog,
   Match,
+  fetchLocations,
+  Location,
 } from "../services/apiService.ts";
 import DogCard from "../components/DogCard.tsx";
 import SearchFilters from "../components/SearchFilters.tsx";
@@ -16,6 +18,11 @@ import {
   ActionButton,
   DogCardWrapper,
 } from "../styles/search.styled.ts";
+import {
+    // ...
+    searchLocations,        // [NEW] we import searchLocations from apiService
+    LocationSearchParams,
+  } from "../services/apiService.ts";
 
 const SearchPage: React.FC = () => {
   const [dogs, setDogs] = useState<Dog[]>([]);
@@ -29,6 +36,11 @@ const SearchPage: React.FC = () => {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [matchedDogId, setMatchedDogId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [locationsMap, setLocationsMap] = useState<Record<string, Location>>({});
+  const [statesInput, setStatesInput] = useState("");
+  const [city, setCity] = useState("");
+//   const [topLat, setTopLat] = useState<number | undefined>();
+  const [zipCodes, setZipCodes] = useState<string[]>([]);
 
   // We want 25 dogs per page
   const pageSize = 25;
@@ -67,27 +79,30 @@ const SearchPage: React.FC = () => {
 
   useEffect(() => {
     let isCancelled = false;
-
+  
     const loadDogs = async () => {
       setIsLoading(true);
       try {
+        
         const response = await fetchDogs(
           selectedBreed ? [selectedBreed] : [],
-          zipCode ? [zipCode] : [],
+          // if we have zipCodes from location search, use them;
+          // else, fallback to direct zipCode
+          zipCodes.length > 0 ? zipCodes : zipCode ? [zipCode] : [],
           ageMin,
           ageMax,
           pageSize,
-          currentPageToken, 
+          currentPageToken,
           sortField,
           sortOrder
         );
-
+  
         if (!isCancelled) {
           const fullDogs = response.resultIds.length
             ? await fetchDogsByIds(response.resultIds)
             : [];
           setDogs(fullDogs);
-
+  
           setPagination({
             next: response.next || undefined,
             prev: response.prev || undefined,
@@ -99,11 +114,12 @@ const SearchPage: React.FC = () => {
         if (!isCancelled) setIsLoading(false);
       }
     };
-
+  
     loadDogs();
     return () => {
       isCancelled = true;
     };
+  // [ADD zipCodes to the deps so we refetch if they change]
   }, [
     selectedBreed,
     zipCode,
@@ -114,18 +130,88 @@ const SearchPage: React.FC = () => {
     pageSize,
     currentPageToken,
     filterTrigger,
+    zipCodes
   ]);
+  
+
+  useEffect(() => {
+    if (!dogs.length) {
+      setLocationsMap({});
+      return;
+    }
+
+    const uniqueZips = Array.from(new Set(dogs.map((dog) => dog.zip_code)));
+
+    //  The POST /locations endpoint can only handle 100 ZIPs at a time
+    const chunkSize = 100;
+    const zipChunks: string[][] = [];
+    for (let i = 0; i < uniqueZips.length; i += chunkSize) {
+      zipChunks.push(uniqueZips.slice(i, i + chunkSize));
+    }
+
+    let isCancelled = false;
+
+    (async () => {
+      try {
+        //  Fire multiple fetchLocations() calls if needed
+        const allLocationPromises = zipChunks.map((chunk) => fetchLocations(chunk));
+        const allLocationArrays = await Promise.all(allLocationPromises);
+
+        // Flatten results
+        const allLocations = allLocationArrays.flat();
+
+        if (!isCancelled) {
+          // Convert to a map: { zip_code: Location }
+          const map: Record<string, Location> = {};
+          for (const loc of allLocations) {
+            map[loc.zip_code] = loc;
+          }
+          setLocationsMap(map);
+        }
+      } catch (error) {
+        console.error("Error loading location data:", error);
+      }
+    })();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [dogs,city,statesInput]);
 
   // Reset everything and force a re-fetch from page 1
-  const applyFilters = useCallback(() => {
-    setCurrentPageToken(undefined); // back to the first page
-    setPagination({});
-    setMatchedDogId(null);
-    setFavorites([]);
-    setDogs([]);
-    setFilterTrigger((prev) => prev + 1);
-  }, []);
-
+  const applyFilters = useCallback(async () => {
+    try {
+      if (city || statesInput) {
+        const statesArray = statesInput
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+  
+        const locationParams: LocationSearchParams = {};
+        if (city) locationParams.city = city;
+        if (statesArray.length > 0) locationParams.states = statesArray;
+  
+        const { results } = await searchLocations(locationParams);
+        const zips = results.map(loc => loc.zip_code);
+  
+        setZipCodes(zips);
+      } else {
+        // if no city/states, reset zipCodes so we only rely on 'zipCode' 
+        setZipCodes([]);
+      }
+  
+      // now reset pagination, matched dogs, etc.
+      setCurrentPageToken(undefined);
+      setPagination({});
+      setMatchedDogId(null);
+      setFavorites([]);
+      setDogs([]);
+      setFilterTrigger((prev) => prev + 1);
+    } catch (error) {
+      console.error("Error in applyFilters location step:", error);
+    }
+  }, [city, statesInput]);
+  
   // Toggle dog as favorite
   const toggleFavorite = useCallback((dogId: string) => {
     setFavorites((prev) =>
@@ -201,6 +287,12 @@ const SearchPage: React.FC = () => {
         setSortField={setSortField}
         sortOrder={sortOrder}
         setSortOrder={setSortOrder}
+        statesInput={statesInput}
+        setStatesInput={setStatesInput}
+        city={city}                 
+        setCity={setCity}            
+        // topLat={topLat}              // etc...
+        // setTopLat={setTopLat}
       />
 
       <ActionButton onClick={applyFilters}>Apply Filters</ActionButton>
@@ -210,9 +302,23 @@ const SearchPage: React.FC = () => {
       ) : (
         <>
           <DogGrid>
-            {dogs.map((dog) => (
-              <DogCardWrapper key={dog.id} isMatched={dog.id === matchedDogId}>
-                <DogCard dog={dog} />
+          {dogs.map((dog) => {
+              // We need to grab the location for this dog's zip
+              const dogLocation = locationsMap[dog.zip_code];
+
+              return (
+                <DogCardWrapper key={dog.id} isMatched={dog.id === matchedDogId}>
+                  <DogCard dog={dog} />
+
+                  {/* Show city/state from the location if we have it */}
+                  {dogLocation ? (
+                    <p>
+                      {dogLocation.city}, {dogLocation.state} (ZIP:{" "}
+                      {dogLocation.zip_code})
+                    </p>
+                  ) : (
+                    <p>Location not found</p>
+                  )}
                 <ActionButton
                   onClick={() => toggleFavorite(dog.id)}
                   className={favorites.includes(dog.id) ? "favorited" : ""}
@@ -220,7 +326,8 @@ const SearchPage: React.FC = () => {
                   {favorites.includes(dog.id) ? "★ Favorited" : "☆ Favorite"}
                 </ActionButton>
               </DogCardWrapper>
-            ))}
+              );
+})}
           </DogGrid>
 
           <ActionButton onClick={generateMatch}>Generate Match</ActionButton>
